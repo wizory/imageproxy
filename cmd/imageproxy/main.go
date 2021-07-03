@@ -39,6 +39,7 @@ var referrers = flag.String("referrers", "", "comma separated list of allowed re
 var includeReferer = flag.Bool("includeReferer", false, "include referer header in remote requests")
 var followRedirects = flag.Bool("followRedirects", true, "follow redirects")
 var baseURL = flag.String("baseURL", "", "default base URL for relative remote URLs")
+var basePath = flag.String("basePath", "", "alternate URI base path to respond to requests on (e.g. /image-proxy)")
 var cache tieredCache
 var signatureKeys signatureKeyList
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
@@ -92,6 +93,15 @@ func main() {
 	}
 
 	r := mux.NewRouter().SkipClean(true).UseEncodedPath()
+
+	if *basePath != "" {
+		// strip basePath and send request to usual handler
+		s := r.PathPrefix(*basePath).Subrouter()
+		s.PathPrefix("/").Handler(http.StripPrefix(*basePath, p))
+
+		fmt.Printf("alternate base URI %s enabled\n", *basePath)
+	}
+
 	r.PathPrefix("/").Handler(p)
 	fmt.Printf("imageproxy listening on %s\n", server.Addr)
 	log.Fatal(http.ListenAndServe(*addr, r))
